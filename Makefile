@@ -1,6 +1,5 @@
-ifeq ($(ENV),)
-  $(error ENV is not set)
-endif
+ENV ?= prod
+v ?= v3.10.x
 
 ##
 # Ensure: "Docker Desktop > Resources > WSL Integration"
@@ -49,7 +48,7 @@ db-reset:
 ##
 # Backup databases
 #
-# make db-backup ID=name ENV=dev 
+# make db-backup ID=name ENV=dev
 ##
 db-backup:
 	./scripts/makefile/db-backup.sh
@@ -57,7 +56,7 @@ db-backup:
 ##
 # Restore databases
 #
-# make db-restore ID=name ENV=dev 
+# make db-restore ID=name ENV=dev
 ##
 db-restore:
 	$(DOCKER_COMPOSE) up -d --force-recreate
@@ -78,7 +77,4 @@ renew-ssl:
 # make docker-image v=v3.8.x
 ##
 docker-image:
-	ifeq ($(v),)
-		$(error v is not set)
-	endif
-	docker build -f Dockerfile.g3wsuite.dockerfile -t g3wsuite/g3w-suite:$(v) --no-cache .
+	docker build -f Dockerfile.g3wsuite.dockerfile -t g3wsuite/g3w-suite:$(v) .

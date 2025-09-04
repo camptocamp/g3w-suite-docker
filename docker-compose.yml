@@ -1,8 +1,6 @@
 services:
   postgis:
     image: kartoza/postgis:16-3.4
-    ports:
-      - "5439:5432"
     environment:
       - POSTGRES_DBNAME=${G3WSUITE_POSTGRES_DBNAME},data_testing,data_production
       - POSTGRES_USER=${G3WSUITE_POSTGRES_USER_LOCAL}
@@ -10,12 +8,7 @@ services:
       - ALLOW_IP_RANGE=0.0.0.0/0
       - RUN_AS_ROOT=true
       - FORCE_SSL=False
-    restart: on-failure
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
+    restart: unless-stopped
     volumes:
       - ${WEBGIS_DOCKER_SHARED_VOLUME}:/var/lib/postgresql
     healthcheck:
@@ -23,15 +16,11 @@ services:
       timeout: 30s
       retries: 3
       test: "PGPASSWORD=${G3WSUITE_POSTGRES_PASS} pg_isready -h 127.0.0.1 -U ${G3WSUITE_POSTGRES_USER_LOCAL} -d ${G3WSUITE_POSTGRES_DBNAME}"
-    networks:
-      internal:
 
   g3w-suite:
     image: g3wsuite/g3w-suite:v3.10.x
     environment:
       - DISPLAY=:99
-      - G3WSUITE_ADMIN_USERNAME
-      - G3WSUITE_ADMIN_PASS
       - G3WSUITE_TILECACHE_PATH
       - G3WSUITE_POSTGRES_DBNAME
       - G3WSUITE_POSTGRES_USER
@@ -54,36 +43,31 @@ services:
       - WEBGIS_PUBLIC_HOSTNAME
       - G3WSUITE_ADMIN_USERNAME
       - G3WSUITE_ADMIN_PASSWORD
+      - PGOPTIONS
+      - QGIS_SERVER_PARALLEL_RENDERING
+      - MAX_CACHE_LAYERS
+      - QGIS_SERVER_CACHE_SIZE
+      - QGIS_SERVER_WMS_MAX_HEIGHT
+      - QGIS_SERVER_WMS_MAX_WIDTH
+      - QGIS_SERVER_API_WFS3_MAX_LIMIT
     expose:
       - "8000"
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
+    restart: unless-stopped
     depends_on:
       - postgis
+      - elasticsearch
+      - redis
     volumes:
       - ${WEBGIS_DOCKER_SHARED_VOLUME}:/shared-volume
       - ${WEBGIS_DOCKER_SHARED_VOLUME}/node_modules:/code/node_modules
       - ./config/g3w-suite/overrides/static:/code/static:ro
       - ./config/g3w-suite/overrides/templates:/code/templates:ro
       - ./config/g3w-suite/settings_docker.py:/code/g3w-admin/base/settings/local_settings.py
-      - ./secrets/pg_service.conf:${PGSERVICEFILE}
       - ./config/qgis/QGIS3.ini:/shared-volume/QGIS/QGIS3.ini
-
-    networks:
-      internal:
 
   redis:
     image: redis:latest
-    expose:
-    - 6379
-    networks:
-      internal:
-    restart: always
+    restart: unless-stopped
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.18.1
@@ -91,12 +75,10 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    ports:
-      - "9200:9200"
-      - "9300:9300"
+    restart: unless-stopped
     volumes:
-      - ${WEBGIS_DOCKER_SHARED_VOLUME}/esdata:/usr/share/elasticsearch/data
-      #- esdata:/usr/share/elasticsearch/data
+      #- ${WEBGIS_DOCKER_SHARED_VOLUME}/esdata:/usr/share/elasticsearch/data
+      - esdata:/usr/share/elasticsearch/data
 
   nginx:
     image: nginx
@@ -112,14 +94,7 @@ services:
       - ./config/g3w-suite/overrides/static:/shared-volume/static/overrides:ro
       - ./config/nginx:/etc/nginx/conf.d/:ro
       - ./config/nginx/html:/var/www/html:ro
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-    restart: always
-    networks:
-      internal:
+    restart: unless-stopped
 
   # Letsencrypt certs
   certbot:
@@ -131,6 +106,5 @@ services:
 volumes:
   shared-volume:
   g3wsuite-pg-data:
+  esdata:
 
-networks:
-  internal:

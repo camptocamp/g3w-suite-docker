@@ -24,7 +24,8 @@ G3WADMIN_LOCAL_MORE_APPS = [
     # Uncomment if you wont activate the following module
     #'openrouteservice',
     'qtimeseries',
-    'frontend'
+    'frontend',
+    'qes',
 ]
 
 DATABASES = {
@@ -136,6 +137,11 @@ ELASTICSEARCH_DSL = {
         #'http_auth': ('username', 'password')
     }
 }
+
+QES_INDEXING_PROJECT = True
+
+QES_INDEXING_CRON_SCHEDULE = "0 */2 * * *"
+
 
 LANGUAGES = (
     ('en', 'English'),

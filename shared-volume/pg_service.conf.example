@@ -1,0 +1,7 @@
+[demo]
+host=odyssey.apps.gs-ch-prod.camptocamp.com
+port=5432
+#sslmode=require
+user=***
+password=***
+dbname=***
