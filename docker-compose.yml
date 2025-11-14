@@ -114,14 +114,13 @@ services:
       - KC_DB_SCHEMA=${KEYCLOAK_DB_SCHEMA}
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN_USER}
       - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
-      - KC_HOSTNAME=${WEBGIS_PUBLIC_HOSTNAME}
-      - KC_HOSTNAME_PATH=/auth
+      - KC_HOSTNAME_URL=http://${WEBGIS_PUBLIC_HOSTNAME}/auth
+      - KC_HOSTNAME_ADMIN_URL=http://${WEBGIS_PUBLIC_HOSTNAME}/auth
+      - KC_HOSTNAME_PORT=8080
       - KC_HOSTNAME_STRICT=false
       - KC_HOSTNAME_STRICT_HTTPS=false
       - KC_HTTP_ENABLED=true
-      - KC_PROXY=edge
-    ports:
-      - "8180:8080"
+      - KC_PROXY_HEADERS=xforwarded
     expose:
       - "8080"
     restart: on-failure
