@@ -17,6 +17,7 @@ if( version >= (3, 5) ):
 G3WADMIN_PROJECT_APPS = []
 
 G3WADMIN_LOCAL_MORE_APPS = [
+    'allauth.socialaccount.providers.openid_connect',  # Keycloak OIDC via django-allauth
     'caching',
     'editing',
     'filemanager',
@@ -227,3 +228,60 @@ if os.getenv('WEBGIS_PUBLIC_HOSTNAME', None):
         f"http://{os.getenv('WEBGIS_PUBLIC_HOSTNAME', None)}",
         f"http://{os.getenv('WEBGIS_PUBLIC_HOSTNAME', None)}:8080"
     ]
+
+# KEYCLOAK SSO / OIDC AUTHENTICATION (via django-allauth)
+# =======================================
+# Following G3W-Suite official approach using django-allauth
+# See: https://g3w-suite.readthedocs.io/en/latest/social_authentication.html
+
+# Keycloak configuration from environment
+KEYCLOAK_REALM = os.getenv('KEYCLOAK_REALM', 'g3wsuite')
+KEYCLOAK_CLIENT_ID = os.getenv('KEYCLOAK_CLIENT_ID', 'g3w-suite-client')
+KEYCLOAK_CLIENT_SECRET = os.getenv('KEYCLOAK_CLIENT_SECRET', '')
+WEBGIS_HOSTNAME = os.getenv('WEBGIS_PUBLIC_HOSTNAME', 'localhost:8080')
+
+# Keycloak server URL (internal docker network)
+KEYCLOAK_SERVER_URL = f"http://keycloak:8080"
+# Keycloak public URL for redirects
+KEYCLOAK_PUBLIC_URL = f"http://{WEBGIS_HOSTNAME}/auth"
+
+# Configure django-allauth for Keycloak OpenID Connect
+SOCIALACCOUNT_PROVIDERS = {
+    'openid_connect': {
+        'APPS': [
+            {
+                'provider_id': 'keycloak',
+                'name': 'Keycloak',
+                'client_id': KEYCLOAK_CLIENT_ID,
+                'secret': KEYCLOAK_CLIENT_SECRET,
+                'settings': {
+                    'server_url': f'{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}',
+                },
+            }
+        ],
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+# django-allauth settings
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+
+# Login/logout redirects
+LOGIN_REDIRECT_URL = '/'
+ACCOUNT_LOGOUT_REDIRECT_URL = '/'
+
+# Custom Social Account Adapter for Keycloak Role Mapping
+# ========================================================
+# Uses semi-automatic admin role assignment:
+# - Keycloak 'admin' role → Django is_staff=True (admin interface access)
+# - Full superuser permissions (is_superuser=True) require manual approval
+# - See: /code/custom_adapter.py for implementation details
+
+import sys
+sys.path.insert(0, '/code')  # Add /code to Python path for custom modules
+SOCIALACCOUNT_ADAPTER = 'custom_adapter.KeycloakRoleBasedAdapter'

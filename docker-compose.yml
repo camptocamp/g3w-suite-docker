@@ -10,6 +10,7 @@ services:
       - ALLOW_IP_RANGE=0.0.0.0/0
       - RUN_AS_ROOT=true
       - FORCE_SSL=False
+      - G3WSUITE_POSTGRES_USER_LOCAL=${G3WSUITE_POSTGRES_USER_LOCAL}
     restart: on-failure
     logging:
       driver: "json-file"
@@ -18,6 +19,7 @@ services:
         max-file: "10"
     volumes:
       - ${WEBGIS_DOCKER_SHARED_VOLUME}:/var/lib/postgresql
+      - ./config/postgres/initdb.d:/docker-entrypoint-initdb.d:ro
     healthcheck:
       interval: 60s
       timeout: 30s
@@ -52,6 +54,9 @@ services:
       - QGIS_SERVER_LOG_FILE
       - QGIS_SERVER_LOG_LEVEL
       - WEBGIS_PUBLIC_HOSTNAME
+      - KEYCLOAK_REALM
+      - KEYCLOAK_CLIENT_ID
+      - KEYCLOAK_CLIENT_SECRET
     expose:
       - "8000"
     restart: always
@@ -63,12 +68,14 @@ services:
 
     depends_on:
       - postgis
+      - keycloak
     volumes:
       - ${WEBGIS_DOCKER_SHARED_VOLUME}:/shared-volume
       - ${WEBGIS_DOCKER_SHARED_VOLUME}/node_modules:/code/node_modules
       - ./config/g3w-suite/overrides/static:/code/static:ro
       - ./config/g3w-suite/overrides/templates:/code/templates:ro
       - ./config/g3w-suite/settings_docker.py:/code/g3w-admin/base/settings/local_settings.py
+      - ./config/g3w-suite/custom_adapter.py:/code/custom_adapter.py:ro
       - ./secrets/pg_service.conf:${PGSERVICEFILE}
       - ./config/qgis/QGIS3.ini:/shared-volume/QGIS/QGIS3.ini
 
@@ -95,6 +102,46 @@ services:
     volumes:
       - ${WEBGIS_DOCKER_SHARED_VOLUME}/esdata:/usr/share/elasticsearch/data
       #- esdata:/usr/share/elasticsearch/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev --import-realm
+    environment:
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgis:5432/${G3WSUITE_POSTGRES_DBNAME}?currentSchema=${KEYCLOAK_DB_SCHEMA}
+      - KC_DB_USERNAME=${G3WSUITE_POSTGRES_USER_LOCAL}
+      - KC_DB_PASSWORD=${G3WSUITE_POSTGRES_PASS}
+      - KC_DB_SCHEMA=${KEYCLOAK_DB_SCHEMA}
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN_USER}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_HOSTNAME=${WEBGIS_PUBLIC_HOSTNAME}
+      - KC_HOSTNAME_PATH=/auth
+      - KC_HOSTNAME_STRICT=false
+      - KC_HOSTNAME_STRICT_HTTPS=false
+      - KC_HTTP_ENABLED=true
+      - KC_PROXY=edge
+    ports:
+      - "8180:8080"
+    expose:
+      - "8080"
+    restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    depends_on:
+      - postgis
+    volumes:
+      - ./config/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nhost: 127.0.0.1:8080\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      internal:
 
   nginx:
     image: nginx
