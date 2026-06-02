@@ -32,7 +32,15 @@ ADD scripts /scripts
 
 RUN chmod +x /scripts/*.sh
 
-RUN /scripts/setup.sh \
+COPY ./code /code
+# RUN git clone https://github.com/g3w-suite/g3w-admin.git \
+#     --single-branch \
+#     --depth 1 \
+#     --branch ${G3W_SUITE_BRANCH:-dev} \
+#     /code
+
+RUN mkdir /shared-volume \
+    && /scripts/setup.sh \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 CMD ["echo", "Base image for g3w-suite-dev", "&&", "tail", "-f", "/dev/null"]

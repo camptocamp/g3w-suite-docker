@@ -28,6 +28,9 @@ services:
 
   g3w-suite:
     image: g3wsuite/g3w-suite:dev
+    build:
+      context: .
+      dockerfile: ./Dockerfile.g3wsuite.dockerfile
     environment:
       - DISPLAY=:99
       - G3WSUITE_ADMIN_USERNAME
@@ -65,7 +68,7 @@ services:
       - postgis
     volumes:
       - ${WEBGIS_DOCKER_SHARED_VOLUME}:/shared-volume
-      - ${WEBGIS_DOCKER_SHARED_VOLUME}/node_modules:/code/node_modules
+      # - ${WEBGIS_DOCKER_SHARED_VOLUME}/node_modules:/code/node_modules
       - ./config/g3w-suite/overrides/static:/code/static:ro
       - ./config/g3w-suite/overrides/templates:/code/templates:ro
       - ./config/g3w-suite/settings_docker.py:/code/g3w-admin/base/settings/local_settings.py
